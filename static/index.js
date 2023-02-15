@@ -90,12 +90,18 @@
       );
     };
 
+    const onSubmit = () => {
+      if (!isReady) return;
+      sendMessage(chatbox.value.trim());
+      chatbox.value = "";
+    };
+
     chatform.addEventListener("submit", (e) => {
       e.preventDefault();
-
-      if (!isReady) return;
-      sendMessage(chatbox.value);
-      chatbox.value = "";
+      onSubmit();
+    });
+    chatbox.addEventListener("keydown", (e) => {
+      if (e.key == "Enter" && !e.shiftKey) onSubmit();
     });
   });
 })();
