@@ -1,0 +1,60 @@
+html,
+body {
+  margin: 0;
+  background-color: #222;
+  color: #fff;
+  height: 100%;
+  font-family: sans-serif;
+}
+
+.container {
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 1em;
+  box-sizing: border-box;
+}
+
+.history {
+  flex: 1;
+  overflow-y: scroll;
+  padding-bottom: 5rem;
+}
+
+.history h4 {
+  margin-bottom: 0;
+}
+.history p {
+  margin-top: 0;
+  word-wrap: break-word;
+}
+
+.chatbar {
+  width: 100%;
+  display: flex;
+}
+
+#chatbox {
+  flex: 1;
+  background-color: #333;
+  border: 0;
+  font-size: 1rem;
+  padding: 0.8em;
+  color: #fff;
+  outline: none;
+}
+
+.btn {
+  background-color: #333;
+  color: #fff;
+  border: 0;
+  cursor: pointer;
+  outline: none;
+  padding: 0 1em;
+}
+.btn:hover,
+.btn:focus {
+  background-color: #444;
+}
