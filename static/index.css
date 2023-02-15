@@ -17,6 +17,10 @@ body {
   box-sizing: border-box;
 }
 
+.message {
+  white-space: pre-line;
+}
+
 .history {
   flex: 1;
   overflow-y: scroll;
@@ -29,6 +33,10 @@ body {
 .history p {
   margin-top: 0;
   word-wrap: break-word;
+}
+.history a:link,
+.history a:visited {
+  color: #91bbfd;
 }
 
 .chatbar {
