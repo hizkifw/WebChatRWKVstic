@@ -10,34 +10,35 @@ app = FastAPI()
 
 @app.websocket("/ws")
 async def websocket(ws: WebSocket):
+    loop = asyncio.get_running_loop()
     await ws.accept()
 
-    loop = asyncio.get_running_loop()
+    session = {"state": None}
 
-    def make_callback(id):
+    async def reply(id, *, result=None, error=None):
+        either = (result is None) is not (error is None)
+        assert either, "Either result or error must be set!"
+
+        if result is not None:
+            await ws.send_json({"jsonrpc": "2.0", "result": result, "id": id})
+        elif error is not None:
+            await ws.send_json({"jsonrpc": "2.0", "error": error, "id": id})
+
+    def on_progress(id):
         def callback(res):
-            asyncio.run_coroutine_threadsafe(
-                ws.send_json(
-                    {
-                        "jsonrpc": "2.0",
-                        "result": {"token": res},
-                        "id": id,
-                    }
-                ),
-                loop,
-            )
+            asyncio.run_coroutine_threadsafe(reply(id, result={"token": res}), loop)
 
         return callback
+
+    def on_done(result):
+        session["state"] = result["state"]
 
     while True:
         data = await ws.receive_json()
         if "jsonrpc" not in data or data["jsonrpc"] != "2.0":
-            await ws.send_json(
-                {
-                    "jsonrpc": "2.0",
-                    "error": "invalid message",
-                    "id": data.get("id", None) if type(data) == dict else None,
-                }
+            await reply(
+                data.get("id", None) if type(data) == dict else None,
+                error="invalid message",
             )
 
         method, params, id = (
@@ -49,33 +50,23 @@ async def websocket(ws: WebSocket):
         if method == "chat":
             text = params.get("text", None)
             if text is None:
-                await ws.send_json(
-                    {
-                        "jsonrpc": "2.0",
-                        "error": f"text is required",
-                        "id": id,
-                    }
-                )
+                await reply(id, error="text is required")
 
             await loop.run_in_executor(
                 None,
-                model.infer,
+                model.chat,
+                session["state"],
                 text,
-                make_callback(id),
+                on_progress(id),
+                on_done,
             )
         else:
-            await ws.send_json(
-                {
-                    "jsonrpc": "2.0",
-                    "error": f"invalid method '{method}'",
-                    "id": id,
-                }
-            )
-
-
-@app.post("/predict")
-async def predict():
-    pass
+            await reply(id, error=f"invalid method '{method}'")
 
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app)

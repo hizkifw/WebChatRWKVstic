@@ -17,13 +17,14 @@ def no_tqdm():
 
 # Load the model (supports full path, relative path, and remote paths)
 model = RWKV(
-    # "../ChatRWKV/models/RWKV-4-Pile-169M-20220807-8023.pth",
+    "../ChatRWKV/models/RWKV-4-Pile-169M-20220807-8023.pth",
     # "../ChatRWKV/models/RWKV-4-Pile-7B-Instruct-test2-20230209.pth",
-    "../ChatRWKV/models/RWKV-4-Pile-7B-20230109-ctx4096.pth",
+    # "../ChatRWKV/models/RWKV-4-Pile-7B-20230109-ctx4096.pth",
+    # "../ChatRWKV/models/RWKV-4-Pile-14B-20230213-8019.pth",
     mode=TORCH,
-    useGPU=True,
+    useGPU=torch.cuda.is_available(),
     runtimedtype=torch.float32,
-    dtype=torch.bfloat16,
+    dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
 )
 
 # Disable tqdm
@@ -41,40 +42,65 @@ def inferthread():
             print("Infer:", task["context"])
 
             # Perform inference
-            model.resetState()
+            model.setState(task.get("state", model.emptyState))
             model.loadContext(newctx=task["context"])
             res = model.forward(
                 number=100,
                 temp=0.7,
                 top_p_usual=0.9,
-                progressLambda=task["callback"],
+                progressLambda=task["progress_callback"],
             )
+
+            if "done_callback" in task:
+                task["done_callback"](res)
 
             print(" ->", res["output"])
         except Exception:
             traceback.print_exc()
         finally:
-            task["callback"](None)
+            task["progress_callback"](None)
 
 
 t = threading.Thread(target=inferthread, daemon=True)
 t.start()
 
 
-def infer(context: str, callback):
-    def _callback(args):
+def infer(*, context: str, state=None, on_progress=None, on_done=None):
+    def _progress_callback(args):
+        if on_progress is None:
+            return
+
         if args is None:
-            callback(None)
+            on_progress(None)
             return
 
         last_token = args["tokens"][-1]
-        callback(model.tokenizer.decode(last_token))
+        on_progress(model.tokenizer.decode(last_token))
+
+    def _done_callback(result):
+        if on_done is None:
+            return
+        on_done(result)
 
     task = {
         "context": context,
-        "callback": _callback,
+        "state": state if state is not None else model.emptyState,
+        "progress_callback": _progress_callback,
+        "done_callback": _done_callback,
     }
     inferqueue.put(task)
+
+
+def chat(state, input: str, on_progress, on_done):
+    if state is None:
+        state = model.emptyState
+
+    infer(
+        context=input,
+        state=state,
+        on_progress=on_progress,
+        on_done=on_done,
+    )
 
 
 if __name__ == "__main__":

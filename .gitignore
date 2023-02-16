@@ -3,4 +3,5 @@ venv
 .venv
 .vim
 .mypy_cache
+.vscode
 __pycache__

@@ -13,5 +13,4 @@ Currently state:
 
 TODO:
 
-- Keep track of state between chat messages, and handle multiple users
 - Tune the model to better match ChatGPT
