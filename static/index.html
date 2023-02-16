@@ -3,7 +3,6 @@
   <head>
     <title>ChatRWKV</title>
     <link rel="stylesheet" href="/index.css" />
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="/index.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
   </head>
@@ -12,9 +11,20 @@
     <div class="container">
       <div class="history" id="history"></div>
       <form id="chatform" class="chatbar">
-        <textarea id="chatbox" autocomplete="off"></textarea>
+        <textarea
+          id="chatbox"
+          autocomplete="off"
+          placeholder="Write a message..."
+        ></textarea>
         <button type="submit" class="btn">Send</button>
       </form>
     </div>
+
+    <link
+      rel="stylesheet"
+      href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/dark.min.css"
+    />
+    <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   </body>
 </html>

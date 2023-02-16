@@ -30,8 +30,17 @@ async def websocket(ws: WebSocket):
 
         return callback
 
-    def on_done(result):
-        session["state"] = result["state"]
+    def on_done(input):
+        def callback(result):
+            print("--- input ---")
+            print(input)
+            print("--- output ---")
+            print(result["output"])
+            print("---")
+
+            session["state"] = result["state"]
+
+        return callback
 
     while True:
         data = await ws.receive_json()
@@ -58,7 +67,7 @@ async def websocket(ws: WebSocket):
                 session["state"],
                 text,
                 on_progress(id),
-                on_done,
+                on_done(text),
             )
         else:
             await reply(id, error=f"invalid method '{method}'")

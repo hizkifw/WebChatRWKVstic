@@ -30,9 +30,16 @@
     const appendMessage = (id, message) => {
       messages[id] += message;
 
+      let markdown = messages[id];
+      // Check for open code blocks and close them
+      if ((markdown.match(/```/g) || []).length % 2 !== 0) markdown += "\n```";
+
       // Append to the p
       const p = document.querySelector("#" + id + " > .messagecontent");
-      p.innerHTML = marked.parse(messages[id]);
+      p.innerHTML = marked.parse(markdown);
+      p.querySelectorAll("pre code").forEach((el) => {
+        hljs.highlightElement(el);
+      });
 
       // Scroll the history box
       historybox.scrollTo({
