@@ -52,8 +52,8 @@ def inferthread():
             model.setState(task.get("state", model.emptyState))
             model.loadContext(newctx=task["context"])
             res = model.forward(
-                number=128,
-                temp=0.6,
+                number=512,
+                temp=0.7,
                 top_p_usual=1,
                 progressLambda=task["progress_callback"],
                 **task.get("forward_kwargs", {}),
@@ -173,39 +173,9 @@ Full Answer in Markdown:
                     on_progress(None)
                 return
 
-        on_progress(ctx["buf"])
-        ctx["buf"] = ""
-
-        """
-        ss, i = ctx["active_stop_seq"]
-        if ss is not None:
-            st = stop_sequences[ss][i]
-            if token == st:
-                i += 1
-                ctx["active_stop_seq"][1] = i
-                ctx["buf"] += token
-
-                if i >= len(stop_sequences[ss]):
-                    ctx["done"] = True
-                    on_progress(None)
-
-                return
-            else:
-                on_progress(ctx["buf"])
-                ctx["buf"] = ""
-                ctx["active_stop_seq"] = [None, 0]
-        else:
-            for i, ss in enumerate(stop_sequences):
-                if ss[0] == token:
-                    ctx["active_stop_seq"] = [i, 1]
-                    ctx["buf"] = token
-
-                    if len(ss) == 1:
-                        ctx["done"] = True
-                        on_progress(None)
-
-                    return
-        """
+        if len(ctx["buf"]) > 0:
+            on_progress(ctx["buf"])
+            ctx["buf"] = ""
 
         ctx["buf_state"] = state
         on_progress(token)
@@ -220,7 +190,12 @@ Full Answer in Markdown:
         on_progress=_on_progress,
         on_done=_on_done,
         forward_kwargs={
-            "stopStrings": ["<|endoftext|>", "---", "Question:", "Full Answer:"]
+            "stopStrings": [
+                "<|endoftext|>",
+                "---",
+                "Question:",
+                "Full Answer in Markdown:",
+            ]
         },
     )
 

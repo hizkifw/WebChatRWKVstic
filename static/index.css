@@ -38,6 +38,9 @@ body {
 .history a:visited {
   color: #91bbfd;
 }
+.history li::marker {
+  color: #aaa;
+}
 
 .chatbar {
   width: 100%;
