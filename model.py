@@ -1,7 +1,7 @@
 import queue
 import threading
 import traceback
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable
 
 import torch
@@ -172,14 +172,17 @@ model = RWKV(
 # Disable tqdm
 no_tqdm()
 
-inferqueue = queue.Queue()
-
 
 @dataclass
 class Task:
-    state: Any
-    context: str
-    progress_callback: Callable[[str], None]
+    state: Any = model.emptyState
+    context: str = ""
+    progress_callback: Callable[[str], None] = lambda x: None
+    done_callback: Callable[[dict[str, Any]], None] = lambda x: None
+    forward_kwargs: dict = field(default_factory=dict)
+
+
+inferqueue: queue.Queue[Task] = queue.Queue()
 
 
 def inferthread():
@@ -189,23 +192,22 @@ def inferthread():
             task = inferqueue.get()
 
             # Perform inference
-            model.setState(task.get("state", model.emptyState))
-            model.loadContext(newctx=task["context"])
+            model.setState(task.state)
+            model.loadContext(newctx=task.context)
             res = model.forward(
                 number=512,
                 temp=1,
                 top_p_usual=0.7,
                 end_adj=-2,
-                progressLambda=task["progress_callback"],
-                **task.get("forward_kwargs", {}),
+                progressLambda=task.progress_callback,
+                **task.forward_kwargs,
             )
 
-            if "done_callback" in task:
-                task["done_callback"](res)
+            task.done_callback(res)
         except Exception:
             traceback.print_exc()
         finally:
-            task["progress_callback"](None)
+            task.progress_callback(None)
 
 
 def infer(
@@ -238,13 +240,13 @@ def infer(
             return
         on_done(result)
 
-    task = {
-        "context": context,
-        "state": state if state is not None else model.emptyState,
-        "progress_callback": _progress_callback,
-        "done_callback": _done_callback,
-        "forward_kwargs": forward_kwargs,
-    }
+    task = Task(
+        state=state if state is not None else model.emptyState,
+        context=context,
+        progress_callback=_progress_callback,
+        done_callback=_done_callback,
+        forward_kwargs=forward_kwargs,
+    )
     inferqueue.put(task)
     ev.wait()
 

@@ -27,6 +27,15 @@ body {
   padding-bottom: 5rem;
 }
 
+.history::-webkit-scrollbar {
+  width: 5px;
+  background-color: #333;
+}
+
+.history::-webkit-scrollbar-thumb {
+  background: #555;
+}
+
 .history h4 {
   margin-bottom: 0;
 }
