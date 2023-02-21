@@ -17,12 +17,110 @@ def no_tqdm():
     tqdm.__init__ = partialmethod(tqdm.__init__, disable=True)
 
 
+@dataclass
+class OnlineModel:
+    name: str
+    url: str
+    vram_gb: int
+
+
+online_models = [
+    # TODO: add more models here
+    OnlineModel(
+        name="RWKV-4-Pile-1B5-ctx4096",
+        url="https://huggingface.co/BlinkDL/rwkv-4-pile-1b5/resolve/main/RWKV-4-Pile-1B5-20220929-ctx4096.pth",
+        vram_gb=3.7,
+    ),
+    OnlineModel(
+        name="RWKV-4-Pile-1B5-Instruct-test2",
+        url="https://huggingface.co/BlinkDL/rwkv-4-pile-1b5/resolve/main/RWKV-4-Pile-1B5-Instruct-test2-20230209.pth",
+        vram_gb=3.7,
+    ),
+    OnlineModel(
+        name="RWKV-4-Pile-169M",
+        url="https://huggingface.co/BlinkDL/rwkv-4-pile-169m/resolve/main/RWKV-4-Pile-169M-20220807-8023.pth",
+        vram_gb=1.3,
+    ),
+]
+
+
+# https://stackoverflow.com/a/63831344
+def download(url, filename):
+    import functools
+    import pathlib
+    import shutil
+    import requests
+    from tqdm.auto import tqdm
+
+    r = requests.get(url, stream=True, allow_redirects=True)
+    if r.status_code != 200:
+        r.raise_for_status()  # Will only raise for 4xx codes, so...
+        raise RuntimeError(f"Request to {url} returned status code {r.status_code}")
+    file_size = int(r.headers.get("Content-Length", 0))
+
+    path = pathlib.Path(filename).expanduser().resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    desc = "(Unknown total file size)" if file_size == 0 else ""
+    r.raw.read = functools.partial(
+        r.raw.read, decode_content=True
+    )  # Decompress if needed
+    with tqdm.wrapattr(r.raw, "read", total=file_size, desc=desc) as r_raw:
+        with path.open("wb") as f:
+            shutil.copyfileobj(r_raw, f)
+
+    return path
+
+
+def get_checkpoint():
+    import psutil
+    import os
+    from glob import glob
+    from os import path
+
+    has_cuda = torch.cuda.is_available()
+    ram_total = psutil.virtual_memory().total
+    vram_total = 0
+
+    # Check if CUDA is available
+    if has_cuda:
+        print("CUDA available")
+        vram_total = torch.cuda.mem_get_info()[1]
+    else:
+        print("WARN: CUDA not available, will use CPU")
+        print("Make sure you install PyTorch with CUDA support. For more information,")
+        print("See: https://pytorch.org/get-started/locally/")
+
+    models_dir = "models"
+    if not path.exists(models_dir):
+        os.makedirs(models_dir)
+
+    # Check if there are any models in the models/ folder
+    models = glob(path.join(models_dir, "*.pth"))
+
+    if len(models) == 0:
+        print("No *.pth models found in the `models` folder, downloading...")
+        print(" -> RAM:", ram_total)
+        print(" -> VRAM:", vram_total)
+        memtarget = vram_total if has_cuda else ram_total
+        for m in online_models:
+            if m.vram_gb * 1024 * 1024 * 1024 <= memtarget:
+                print("Downloading model", m.name)
+                download(m.url, path.join(models_dir, m.name + ".pth"))
+                break
+
+        models = glob(path.join(models_dir, "*.pth"))
+        if len(models) == 0:
+            raise Exception("Could not find a suitable model to download.")
+
+    # TODO: get model name from command line args / config file
+    print("-> Using model", models[0])
+    return models[0]
+
+
 # Load the model (supports full path, relative path, and remote paths)
 model = RWKV(
-    # "../ChatRWKV/models/RWKV-4-Pile-169M-20220807-8023.pth",
-    "../ChatRWKV/models/RWKV-4-Pile-7B-Instruct-test2-20230209.pth",
-    # "../ChatRWKV/models/RWKV-4-Pile-7B-20230109-ctx4096.pth",
-    # "../ChatRWKV/models/RWKV-4-Pile-14B-20230213-8019.pth",
+    get_checkpoint(),
     mode=TORCH,
     useGPU=torch.cuda.is_available(),
     runtimedtype=torch.float32,
@@ -53,8 +151,9 @@ def inferthread():
             model.loadContext(newctx=task["context"])
             res = model.forward(
                 number=512,
-                temp=0.7,
-                top_p_usual=1,
+                temp=1,
+                top_p_usual=0.7,
+                end_adj=-2,
                 progressLambda=task["progress_callback"],
                 **task.get("forward_kwargs", {}),
             )
@@ -124,10 +223,9 @@ t.start()
 
 def chat(state, input: str, on_progress, on_done):
     # Format the input to be a Q & A
-    input_indent = "    " + input.replace("\n", "\n    ").strip()
     input = f"""
 Question:
-{input_indent}
+{input}
 
 Full Answer in Markdown:
 """

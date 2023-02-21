@@ -8,6 +8,14 @@
     const chatform = document.querySelector("#chatform");
     const historybox = document.querySelector("#history");
 
+    marked.setOptions({
+      highlight: function (code, lang) {
+        const language = hljs.getLanguage(lang) ? lang : "plaintext";
+        return hljs.highlight(code, { language }).value;
+      },
+      langPrefix: "hljs language-",
+    });
+
     const renderMessage = (id, from, message) => {
       messages[id] = message;
 
@@ -37,9 +45,6 @@
       // Append to the p
       const p = document.querySelector("#" + id + " > .messagecontent");
       p.innerHTML = marked.parse(markdown);
-      p.querySelectorAll("pre code").forEach((el) => {
-        hljs.highlightElement(el);
-      });
 
       // Scroll the history box
       historybox.scrollTo({
@@ -62,7 +67,7 @@
       data = JSON.parse(ev.data);
       if ("result" in data && "token" in data["result"]) {
         if (data.result.token === null) isReady = true;
-        else appendMessage(data.id, data.result.token);
+        else appendMessage(data.id, data.result.token.replace("<", "&lt;"));
       }
     });
     ws.addEventListener("open", () => {
