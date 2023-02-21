@@ -21,31 +21,60 @@ def no_tqdm():
 class OnlineModel:
     name: str
     url: str
+    sha256: str
     vram_gb: int
 
 
 online_models = [
     # TODO: add more models here
     OnlineModel(
+        name="RWKV-4-Pile-7B-ctx4096",
+        url="https://huggingface.co/BlinkDL/rwkv-4-pile-7b/resolve/main/RWKV-4-Pile-7B-20230109-ctx4096.pth",
+        sha256="9ea1271b25deb6c72bd29f629147d5013cc7d7c69f9715192f6b6b92fca08f64",
+        vram_gb=14,
+    ),
+    OnlineModel(
+        name="RWKV-4-Pile-3B-ctx4096",
+        url="https://huggingface.co/BlinkDL/rwkv-4-pile-3b/resolve/main/RWKV-4-Pile-3B-20221110-ctx4096.pth",
+        sha256="9500633f23d86fbae3cb3cbe7908b97b971e9561edf583c2c5c60b10b02bcc27",
+        vram_gb=6,
+    ),
+    OnlineModel(
         name="RWKV-4-Pile-1B5-ctx4096",
         url="https://huggingface.co/BlinkDL/rwkv-4-pile-1b5/resolve/main/RWKV-4-Pile-1B5-20220929-ctx4096.pth",
+        sha256="6c97043e1bb0867368249290c97a2fe8ffc5ec12ceb1b5251f4ee911f9982c23",
         vram_gb=3.7,
     ),
     OnlineModel(
         name="RWKV-4-Pile-1B5-Instruct-test2",
         url="https://huggingface.co/BlinkDL/rwkv-4-pile-1b5/resolve/main/RWKV-4-Pile-1B5-Instruct-test2-20230209.pth",
+        sha256="19aafd001257702bd66c81e5e05dcbc088341e825cc41b4feaeb35aa1b55624c",
         vram_gb=3.7,
     ),
     OnlineModel(
         name="RWKV-4-Pile-169M",
         url="https://huggingface.co/BlinkDL/rwkv-4-pile-169m/resolve/main/RWKV-4-Pile-169M-20220807-8023.pth",
+        sha256="713c6f6137a08d3a86ab57df4f09ea03563329beb3bbabc23509d6c57aa0f9e2",
         vram_gb=1.3,
     ),
 ]
 
 
+def hash_file(filename):
+    import hashlib
+
+    file_hash = hashlib.sha256()
+    with open(filename, "rb") as f:
+        while True:
+            data = f.read(4 * 1024)
+            if not data:
+                break
+            file_hash.update(data)
+    return file_hash.hexdigest()
+
+
 # https://stackoverflow.com/a/63831344
-def download(url, filename):
+def download(url, filename, sha256=None):
     import functools
     import pathlib
     import shutil
@@ -68,6 +97,15 @@ def download(url, filename):
     with tqdm.wrapattr(r.raw, "read", total=file_size, desc=desc) as r_raw:
         with path.open("wb") as f:
             shutil.copyfileobj(r_raw, f)
+
+    if sha256 is not None:
+        print("Verifying file integrity...")
+        file_hash = hash_file(path)
+        if file_hash != sha256:
+            print("Error downloading file: checksums do not match")
+            print("Expected", sha256)
+            print("But got ", file_hash)
+            raise Exception("Checksums do not match!")
 
     return path
 
@@ -106,7 +144,11 @@ def get_checkpoint():
         for m in online_models:
             if m.vram_gb * 1024 * 1024 * 1024 <= memtarget:
                 print("Downloading model", m.name)
-                download(m.url, path.join(models_dir, m.name + ".pth"))
+                download(
+                    m.url,
+                    path.join(models_dir, m.name + ".pth"),
+                    sha256=m.sha256,
+                )
                 break
 
         models = glob(path.join(models_dir, "*.pth"))
