@@ -125,9 +125,18 @@ def get_checkpoint():
         print("CUDA available")
         vram_total = torch.cuda.mem_get_info()[1]
     else:
-        print("WARN: CUDA not available, will use CPU")
-        print("Make sure you install PyTorch with CUDA support. For more information,")
-        print("See: https://pytorch.org/get-started/locally/")
+        print(
+            """
+**************************************
+WARN: CUDA not available, will use CPU
+If you want to use CUDA, try running this command:
+
+  pip install torch --extra-index-url https://download.pytorch.org/whl/cu117 --upgrade
+
+For more information, see: https://pytorch.org/get-started/locally/
+*************************************
+"""
+        )
 
     models_dir = "models"
     if not path.exists(models_dir):
