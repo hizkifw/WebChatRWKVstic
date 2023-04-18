@@ -1,3 +1,13 @@
+# ! NO LONGER MAINTAINED !
+
+> **Warning**
+> This repository is no longer maintained. Please see other forks,
+> such as [wfox4/WebChatRWKVv2](https://github.com/wfox4/WebChatRWKVv2). For
+> more info on the RWKV language model, check the
+> [BlinkDL/ChatRWKV](https://github.com/BlinkDL/ChatRWKV) repository.
+
+---
+
 # WebChatRWKVstic
 
 ![screenshot](https://raw.githubusercontent.com/hizkifw/WebChatRWKVstic/main/.github/images/screenshot.png)
